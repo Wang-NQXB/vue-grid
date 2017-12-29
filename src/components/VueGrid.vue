@@ -6,7 +6,7 @@
         <th v-if="showIndex" :style="{width: indexWidth+'px'}">
         </th>
         <th v-if="showSelect" :style="{width: selectWidth+'px'}">
-          <input type="checkbox" v-model="allSelected">
+          <input type="checkbox">
         </th>
 
         <th v-for="(col, index) of cols" :key="index" @click="changeSort(col.key)">
@@ -15,14 +15,14 @@
       </tr>
       </thead>
 
-      <tbody>
-      <tr v-for="(row, index) of rows" :key="row.id||(row.id=index)"
+      <tbody v-show="!loading && rows.length">
+      <tr v-for="(row, index) of rows" :key="row.id||(row.id=getIndex(index))"
           :style="{backgroundColor: getBackground(index)}" @click="rowClick(row.id, row)">
         <td v-if="showIndex" :style="{textAlign: 'center'}">
-          {{pageSize*(pageNo-1)+index+1}}
+          {{getIndex(index)}}
         </td>
         <td v-if="showSelect" :style="{textAlign: 'center'}">
-          <input type="checkbox" v-model="row.selected" @change="rowSelect(row.selected, row.id, row)">
+          <input type="checkbox" v-model="row.$selected" @change="rowSelect(row.$selected, row.id, row)">
         </td>
         <template v-for="(col, index) of cols">
           <td v-if="col.edit" :key="index">
@@ -36,12 +36,29 @@
         </template>
       </tr>
       </tbody>
+
+      <tbody v-show="loading || !rows.length" class="loader">
+      <tr v-show="loading">
+        <td colspan="100%">
+          <div ref="loader" class="loader" :style="{height: loadingHeight+'px',lineHeight: loadingHeight+'px'}">
+            加载中...
+          </div>
+        </td>
+      </tr>
+      <tr v-show="!loading && !rows.length">
+        <td colspan="100%">
+          <div ref="tip" class="tip" :style="{height: loadingHeight+'px',lineHeight: loadingHeight+'px'}">
+            无数据！
+          </div>
+        </td>
+      </tr>
+      </tbody>
     </table>
 
     <div ref="pager" class="pager">
-      <div class="selected">
-        已勾选{{selectedNum}}条，
-        <button data-type="text" @click="allSelected=false">重置</button>
+      <div v-if="showSelect" class="selected">
+        已勾选{{0}}条，
+        <button data-type="text">重置</button>
       </div>
 
       <div class="pageInfo">
@@ -56,7 +73,6 @@
       </div>
     </div>
 
-    <div ref="loader" v-show="loading" class="loader"></div>
   </div>
 </template>
 
@@ -65,7 +81,7 @@
     name: 'vue-grid',
     data () {
       return {
-        editingVal: ''
+        editingVal: '',
       }
     },
     props: {
@@ -115,7 +131,7 @@
       },
       pageSizeList: {
         type: Array,
-        default: () => [10, 20, 50, 100]
+        default: () => [10, 20, 50, 100, 1000, 10000]
       },
       rowBGC: {
         type: String,
@@ -132,27 +148,19 @@
       loading: {
         type: Boolean,
         default: false
-      }
-    },
-    computed: {
-      allSelected: {
-        get () {
-          return this.rows.every(row => row.selected)
-        },
-        set (val) {
-          this.rows.forEach(row => row.selected = val)
-        }
       },
-      selectedNum () {
-        return this.rows.filter(row => row.selected).length
-      }
+      loadingHeight: {
+        type: Number,
+        default: 350
+      },
     },
     methods: {
       rowClick (id, row) {
         this.$emit('onRowClick', id, row)
       },
       rowSelect (val, id, row) {
-        this.$emit(val ? 'onRowSelected' : 'onRowUnSelected', id, row)
+        this.$emit(val ? 'rowSelected' : 'rowUnSelected', id, row)
+        this.$emit('rowSelectedChange', val, id, row)
       },
       changeSort (key) {
         this.sortForward = this.sortBy === key ? !this.sortForward : true
@@ -164,6 +172,9 @@
             ? this.oddBGC
             : this.evenBGC
           : this.rowBGC
+      },
+      getIndex (index) {
+        return this.pageSize * (this.pageNo - 1) + index + 1
       },
       cacheEdit (val) {
         this.editingVal = val
@@ -178,10 +189,7 @@
           sortBy: this.sortBy,
           sortForward: this.sortForward
         })
-      }
-    },
-    mounted () {
-      this.refresh = this.refresh.bind(this)
+      },
     },
     watch: {
       pageNo () {
@@ -221,6 +229,9 @@
         padding: 5px;
         border-bottom: 1px solid #ebeef5;
       }
+    }
+    .loader {
+      text-align: center;
     }
     .pager {
       overflow: hidden;

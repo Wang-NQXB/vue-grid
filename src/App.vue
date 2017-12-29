@@ -1,8 +1,9 @@
 <template>
   <div id="app">
-    <vue-grid v-bind="options"
+    <vue-grid v-bind="gridOpt"
+              @refresh="refresh"
               @saveeditcell="saveEditCell"
-              @refresh="refresh"/>
+              @rowSelectedChange="rowSelectedChange"/>
   </div>
 </template>
 
@@ -10,22 +11,22 @@
   import VueGrid from './components/VueGrid'
   import getData from './data'
 
-  console.log(getData)
   export default {
     name: 'app',
     components: {VueGrid},
     data () {
       return {
-        options: {
+        gridOpt: {
           cols: [
             {key: 'name', name: '姓名'},
             {key: 'age', name: '年龄', edit: true},
             {key: 'gender', name: '性别', align: 'center'},
           ],
-          rows: [],
           pageNo: 1,
           pageSize: 20,
-          totalPage: 1
+          totalPage: 1,
+          loading: false,
+          allSelected: false
         }
       }
     },
@@ -42,12 +43,22 @@
       updateAge (val, oldVal, row) {
         row.age = /^\d+$/.test(val) ? val : oldVal
       },
+      rowSelectedChange (val, id, row) {
+        console.log(val ? 'rowSelected!' : 'rowUnSelected')
+      },
       refresh ({pageNo, pageSize, sortBy, sortForward}) {
-        const data = getData(pageNo, pageSize, sortBy, sortForward)
-        this.options.rows = data.rows
-        this.options.pageNo = data.pageNo
-        this.options.pageSize = data.pageSize
-        this.options.totalPage = data.totalPage
+        this.gridOpt.loading = true
+        this.gridOpt.pageNo = pageNo
+        this.gridOpt.pageSize = pageSize
+        this.gridOpt.sortBy = sortBy
+        this.gridOpt.sortForward = sortForward
+
+        setTimeout(() => {
+          const data = getData(pageNo, pageSize, sortBy, sortForward)
+          this.gridOpt.rows = data.rows
+          this.gridOpt.totalPage = data.totalPage
+          this.gridOpt.loading = false
+        }, 2000)
       }
     }
   }
